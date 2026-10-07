@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Insight — Rough Set Student Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EEF1F1;
+    --panel: #FFFFFF;
+    --panel-alt: #E4E9EA;
+    --ink: #1C2541;
+    --ink-soft: #4C5670;
+    --line: #C7CDD6;
+    --certain: #1B6E63;
+    --certain-bg: #E1EEEC;
+    --boundary: #B9791E;
+    --boundary-bg: #F5E9D6;
+    --outside: #8B94A3;
+    --outside-bg: #E7E9EC;
+    --focus: #2E5AAC;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161F;
+      --panel: #1B212D;
+      --panel-alt: #222836;
+      --ink: #E7EAF2;
+      --ink-soft: #A7AFC4;
+      --line: #333B4C;
+      --certain: #4FBBA9;
+      --certain-bg: #16332E;
+      --boundary: #E0AA56;
+      --boundary-bg: #3A2E14;
+      --outside: #7C879C;
+      --outside-bg: #232838;
+      --focus: #7EA6FF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161F;
+    --panel: #1B212D;
+    --panel-alt: #222836;
+    --ink: #E7EAF2;
+    --ink-soft: #A7AFC4;
+    --line: #333B4C;
+    --certain: #4FBBA9;
+    --certain-bg: #16332E;
+    --boundary: #E0AA56;
+    --boundary-bg: #3A2E14;
+    --outside: #7C879C;
+    --outside-bg: #232838;
+    --focus: #7EA6FF;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  header.hero {
+    padding: 8px 0 36px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 36px;
+  }
+  h1 {
+    font-family: 'Lora', serif;
+    font-weight: 600;
+    font-size: 2.4rem;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+  .tagline {
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+  h2 {
+    font-family: 'Lora', serif;
+    font-weight: 600;
+    font-size: 1.3rem;
+    margin: 0 0 4px;
+  }
+  .section-note {
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    margin: 0 0 18px;
+    max-width: 68ch;
+  }
+  section { margin-bottom: 44px; }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 20px;
+  }
+
+  /* Data table */
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  th, td { padding: 7px 8px; text-align: left; white-space: nowrap; }
+  thead th {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+  }
+  tbody td { border-bottom: 1px solid var(--panel-alt); font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; }
+  select {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    padding: 3px 4px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+  }
+  select:focus, button:focus, input:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+  .row-remove {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+  }
+  .row-remove:hover { color: var(--boundary); }
+
+  .table-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  button.btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 9px 16px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--bg);
+    cursor: pointer;
+  }
+  button.btn:hover { opacity: 0.85; }
+  button.btn.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  button.btn.secondary:hover { border-color: var(--ink); }
+
+  /* Region visualization */
+  .gamma-readout {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .gamma-num {
+    font-family: 'Lora', serif;
+    font-size: 2.1rem;
+    font-weight: 600;
+  }
+  .gamma-label { color: var(--ink-soft); font-size: 0.85rem; max-width: 32ch; }
+
+  .region-block { margin-bottom: 16px; }
+  .region-title {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.86rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .region-bar {
+    display: flex;
+    height: 22px;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .seg { height: 100%; }
+  .seg.lower { background: var(--certain); }
+  .seg.boundary { background: var(--boundary); }
+  .seg.outside { background: var(--outside-bg); }
+  .region-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .legend-dot { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 1px; }
+
+  /* Reduct + rules */
+  .attr-chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .chip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+  .chip.kept {
+    border-color: var(--certain);
+    color: var(--certain);
+    background: var(--certain-bg);
+  }
+  .chip.dropped {
+    text-decoration: line-through;
+  }
+
+  .rules-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .rule-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--panel-alt);
+    border-left: 3px solid var(--certain);
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+  }
+  .rule-cond { font-family: 'IBM Plex Mono', monospace; color: var(--ink); }
+  .rule-then { color: var(--ink-soft); font-size: 0.8rem; margin: 0 8px; }
+  .rule-decision { font-weight: 600; }
+  .rule-support { color: var(--ink-soft); font-size: 0.76rem; white-space: nowrap; }
+
+  /* Classify panel */
+  .classify-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .field label {
+    display: block;
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .field select { width: 100%; padding: 8px; font-family: 'Inter', sans-serif; font-size: 0.88rem; }
+
+  .result-panel {
+    padding: 16px;
+    border: 1px solid var(--line);
+    background: var(--panel-alt);
+    display: none;
+  }
+  .result-panel.show { display: block; }
+  .result-status {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    margin-bottom: 10px;
+  }
+  .result-status.certain { background: var(--certain-bg); color: var(--certain); }
+  .result-status.uncertain { background: var(--boundary-bg); color: var(--boundary); }
+  .result-status.unknown { background: var(--outside-bg); color: var(--outside); }
+  .result-decision { font-family: 'Lora', serif; font-size: 1.5rem; font-weight: 600; margin: 0 0 6px; }
+  .result-detail { color: var(--ink-soft); font-size: 0.86rem; }
+
+  footer {
+    margin-top: 50px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>Performance Insight</h1>
+    <p class="tagline">A student performance classifier built on Rough Set Theory — it shows not just what it predicts, but where it's certain and where the data genuinely leaves it undecided.</p>
+  </header>
+
+  <section id="data-section">
+    <h2>Student data</h2>
+    <p class="section-note">Each row is a student described by four condition attributes plus an observed outcome. Edit any cell, add rows, and every panel below recalculates instantly.</p>
+    <div class="panel">
+      <div class="table-scroll">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Attendance</th>
+              <th>Assignments</th>
+              <th>Internal marks</th>
+              <th>Study hours</th>
+              <th>Outcome</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div class="table-actions">
+        <button class="btn" id="add-row">Add student</button>
+        <button class="btn secondary" id="reset-data">Reset to sample data</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="regions-section">
+    <h2>Approximation regions</h2>
+    <p class="section-note">For each outcome, the lower approximation is students the data classifies with certainty; the boundary is students who share a profile with someone who turned out differently.</p>
+    <div class="grid-2">
+      <div class="panel" id="regions-panel"></div>
+      <div class="panel" id="gamma-panel"></div>
+    </div>
+  </section>
+
+  <section id="reduct-section">
+    <h2>Attribute reduct</h2>
+    <p class="section-note">The minimal set of attributes that classifies students just as well as using all four — found by greedily adding whichever attribute raises the dependency degree most.</p>
+    <div class="panel">
+      <div id="reduct-chips" class="attr-chip-row"></div>
+      <div id="rules-list" class="rules-list"></div>
+    </div>
+  </section>
+
+  <section id="classify-section">
+    <h2>Classify a new student</h2>
+    <p class="section-note">Enter a profile using the reduct attributes. The result is flagged certain only when every matching student in the data had the same outcome.</p>
+    <div class="panel">
+      <div class="classify-grid" id="classify-fields"></div>
+      <button class="btn" id="classify-btn">Classify</button>
+      <div class="result-panel" id="result-panel" style="margin-top:18px;">
+        <span class="result-status" id="result-status"></span>
+        <p class="result-decision" id="result-decision"></p>
+        <p class="result-detail" id="result-detail"></p>
+      </div>
+    </div>
+  </section>
+
+  <footer>Built as a Smart India Hackathon prototype — classical Rough Set Theory (Pawlak), implemented from scratch, no external ML libraries.</footer>
+</div>
+
+<script>
+const LEVELS = ['Low', 'Med', 'High'];
+const DECISIONS = ['AtRisk', 'Average', 'HighPerformer'];
+const DECISION_LABELS = { AtRisk: 'At risk', Average: 'Average', HighPerformer: 'High performer' };
+const CONDITION_ATTRS = ['attendance', 'assignments', 'internal', 'studyHours'];
+const ATTR_LABELS = { attendance: 'Attendance', assignments: 'Assignments', internal: 'Internal marks', studyHours: 'Study hours' };
+
+const SAMPLE_DATA = [
+  { attendance:'High', assignments:'High', internal:'High', studyHours:'High', decision:'HighPerformer' },
+  { attendance:'High', assignments:'High', internal:'High', studyHours:'Med',  decision:'HighPerformer' },
+  { attendance:'High', assignments:'High', internal:'Med',  studyHours:'Low',  decision:'HighPerformer' },
+  { attendance:'High', assignments:'Med',  internal:'High', studyHours:'Med',  decision:'HighPerformer' },
+  { attendance:'Med',  assignments:'High', internal:'High', studyHours:'High', decision:'HighPerformer' },
+  { attendance:'Med',  assignments:'Med',  internal:'Med',  studyHours:'Med',  decision:'Average' },
+  { attendance:'Med',  assignments:'Med',  internal:'Med',  studyHours:'High', decision:'Average' },
+  { attendance:'Med',  assignments:'Low',  internal:'Med',  studyHours:'Low',  decision:'Average' },
+  { attendance:'High', assignments:'Med',  internal:'Med',  studyHours:'Low',  decision:'Average' },
+  { attendance:'Low',  assignments:'Med',  internal:'Med',  studyHours:'Med',  decision:'Average' },
+  { attendance:'Low',  assignments:'Low',  internal:'Low',  studyHours:'Low',  decision:'AtRisk' },
+  { attendance:'Low',  assignments:'Low',  internal:'Low',  studyHours:'High', decision:'AtRisk' },
+  { attendance:'Low',  assignments:'Med',  internal:'Low',  studyHours:'Low',  decision:'AtRisk' },
+  { attendance:'Low',  assignments:'Low',  internal:'Med',  studyHours:'Low',  decision:'AtRisk' },
+  { attendance:'Med',  assignments:'Low',  internal:'Low',  studyHours:'Med',  decision:'AtRisk' },
+  { attendance:'Med',  assignments:'Med',  internal:'Low',  studyHours:'Med',  decision:'Average' },
+  { attendance:'Med',  assignments:'Med',  internal:'Low',  studyHours:'Med',  decision:'AtRisk' },
+  { attendance:'Low',  assignments:'High', internal:'Med',  studyHours:'High', decision:'Average' },
+];
+
+let rows = JSON.parse(JSON.stringify(SAMPLE_DATA));
+
+// ---------- RST core ----------
+function groupByKey(rowsArr, attrs) {
+  const groups = new Map();
+  rowsArr.forEach((row, idx) => {
+    const key = attrs.map(a => row[a]).join('|');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(idx);
+  });
+  return groups;
+}
+
+function approximations(rowsArr, condAttrs, decisionAttr) {
+  const classes = groupByKey(rowsArr, condAttrs);
+  const result = {};
+  DECISIONS.forEach(dv => {
+    const targetIdx = new Set(rowsArr.map((r,i)=>i).filter(i => rowsArr[i][decisionAttr] === dv));
+    let lower = [], upper = [];
+    for (const [, idxs] of classes) {
+      const allIn = idxs.every(i => targetIdx.has(i));
+      const someIn = idxs.some(i => targetIdx.has(i));
+      if (allIn) lower.push(...idxs);
+      if (someIn) upper.push(...idxs);
+    }
+    const lowerSet = new Set(lower);
+    const boundary = [...new Set(upper.filter(i => !lowerSet.has(i)))];
+    result[dv] = { lower, upper, boundary };
+  });
+  return { classes, result };
+}
+
+function positiveRegionSize(rowsArr, condAttrs, decisionAttr) {
+  const { result } = approximations(rowsArr, condAttrs, decisionAttr);
+  const pos = new Set();
+  Object.values(result).forEach(r => r.lower.forEach(i => pos.add(i)));
+  return pos.size;
+}
+
+function dependencyDegree(rowsArr, condAttrs, decisionAttr) {
+  if (rowsArr.length === 0) return 0;
+  return positiveRegionSize(rowsArr, condAttrs, decisionAttr) / rowsArr.length;
+}
+
+function quickReduct(rowsArr, allCondAttrs, decisionAttr) {
+  const fullGamma = dependencyDegree(rowsArr, allCondAttrs, decisionAttr);
+  let reduct = [], remaining = [...allCondAttrs], currentGamma = 0;
+  while (currentGamma < fullGamma && remaining.length > 0) {
+    let bestAttr = null, bestGamma = currentGamma;
+    for (const attr of remaining) {
+      const g = dependencyDegree(rowsArr, [...reduct, attr], decisionAttr);
+      if (g > bestGamma) { bestGamma = g; bestAttr = attr; }
+    }
+    if (bestAttr === null) break;
+    reduct.push(bestAttr);
+    remaining = remaining.filter(a => a !== bestAttr);
+    currentGamma = bestGamma;
+  }
+  if (reduct.length === 0) reduct = [...allCondAttrs];
+  return { reduct, gamma: currentGamma, fullGamma };
+}
+
+function generateRules(rowsArr, reductAttrs, decisionAttr) {
+  const { classes } = approximations(rowsArr, reductAttrs, decisionAttr);
+  const rules = [];
+  for (const [key, idxs] of classes) {
+    const decisions = new Set(idxs.map(i => rowsArr[i][decisionAttr]));
+    if (decisions.size === 1) {
+      const values = key.split('|');
+      rules.push({
+        conditions: reductAttrs.map((a,i) => `${ATTR_LABELS[a]} = ${values[i]}`).join('  AND  '),
+        decision: [...decisions][0],
+        support: idxs.length
+      });
+    }
+  }
+  rules.sort((a,b) => b.support - a.support);
+  return rules;
+}
+
+function classifyNew(rowsArr, reductAttrs, decisionAttr, newStudent) {
+  const key = reductAttrs.map(a => newStudent[a]).join('|');
+  const matches = rowsArr.filter(r => reductAttrs.map(a => r[a]).join('|') === key);
+  if (matches.length === 0) return { status: 'unknown', decision: null, detail: 'No student in the data shares this exact profile on the reduct attributes.' };
+  const decisions = [...new Set(matches.map(r => r[decisionAttr]))];
+  if (decisions.length === 1) {
+    return { status: 'certain', decision: decisions[0], detail: `${matches.length} matching student(s) in the data, all "${DECISION_LABELS[decisions[0]]}".` };
+  }
+  const counts = {};
+  matches.forEach(r => { counts[r[decisionAttr]] = (counts[r[decisionAttr]] || 0) + 1; });
+  const parts = Object.entries(counts).map(([k,v]) => `${v} ${DECISION_LABELS[k]}`).join(', ');
+  return { status: 'uncertain', decision: decisions, detail: `${matches.length} matching students split: ${parts}.` };
+}
+
+// ---------- Rendering ----------
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  rows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td>` +
+      CONDITION_ATTRS.map(a => `<td>${selectHtml(a, i, LEVELS, row[a])}</td>`).join('') +
+      `<td>${selectHtml('decision', i, DECISIONS, row.decision, true)}</td>` +
+      `<td><button class="row-remove" data-idx="${i}" title="Remove student">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('select').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const idx = +e.target.dataset.idx;
+      const attr = e.target.dataset.attr;
+      rows[idx][attr] = e.target.value;
+      recompute();
+    });
+  });
+  tbody.querySelectorAll('.row-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = +e.target.dataset.idx;
+      rows.splice(idx, 1);
+      renderTable();
+      recompute();
+    });
+  });
+}
+
+function selectHtml(attr, idx, options, current, isDecision) {
+  const labels = isDecision ? DECISION_LABELS : null;
+  return `<select data-attr="${attr}" data-idx="${idx}">` +
+    options.map(o => `<option value="${o}" ${o===current?'selected':''}>${labels ? labels[o] : o}</option>`).join('') +
+    `</select>`;
+}
+
+function renderRegions(approx) {
+  const panel = document.getElementById('regions-panel');
+  panel.innerHTML = '<h2 style="font-size:1rem;margin-bottom:14px;">Regions by outcome</h2>';
+  DECISIONS.forEach(dv => {
+    const r = approx.result[dv];
+    const total = rows.length || 1;
+    const lowerCount = r.lower.length;
+    const boundaryCount = r.boundary.length;
+    const outsideCount = total - lowerCount - boundaryCount;
+    const block = document.createElement('div');
+    block.className = 'region-block';
+    block.innerHTML = `
+      <div class="region-title"><span>${DECISION_LABELS[dv]}</span><span style="color:var(--ink-soft);font-weight:400;">${lowerCount} certain · ${boundaryCount} boundary</span></div>
+      <div class="region-bar">
+        <div class="seg lower" style="width:${(lowerCount/total)*100}%"></div>
+        <div class="seg boundary" style="width:${(boundaryCount/total)*100}%"></div>
+        <div class="seg outside" style="width:${(outsideCount/total)*100}%"></div>
+      </div>`;
+    panel.appendChild(block);
+  });
+  const legend = document.createElement('div');
+  legend.className = 'region-legend';
+  legend.innerHTML = `
+    <span><span class="legend-dot" style="background:var(--certain)"></span>Lower approximation (certain)</span>
+    <span><span class="legend-dot" style="background:var(--boundary)"></span>Boundary (uncertain)</span>
+    <span><span class="legend-dot" style="background:var(--outside)"></span>Outside this class</span>`;
+  panel.appendChild(legend);
+}
+
+function renderGamma(fullGamma) {
+  const panel = document.getElementById('gamma-panel');
+  const pct = Math.round(fullGamma * 100);
+  panel.innerHTML = `
+    <h2 style="font-size:1rem;margin-bottom:14px;">Overall dependency degree</h2>
+    <div class="gamma-readout">
+      <span class="gamma-num">${pct}%</span>
+      <span class="gamma-label">of students are classified with certainty by all four attributes together (γ = ${fullGamma.toFixed(3)})</span>
+    </div>
+    <p class="section-note" style="margin:0;">The remaining students share an identical profile with at least one student who ended up in a different outcome bucket — the data itself is ambiguous for them, not the model.</p>
+  `;
+}
+
+function renderReduct(reductInfo) {
+  const chipRow = document.getElementById('reduct-chips');
+  chipRow.innerHTML = '';
+  CONDITION_ATTRS.forEach(a => {
+    const kept = reductInfo.reduct.includes(a);
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (kept ? ' kept' : ' dropped');
+    chip.textContent = ATTR_LABELS[a];
+    chipRow.appendChild(chip);
+  });
+  const note = document.createElement('p');
+  note.className = 'section-note';
+  note.style.marginTop = '10px';
+  const dropped = CONDITION_ATTRS.filter(a => !reductInfo.reduct.includes(a));
+  note.textContent = dropped.length
+    ? `${dropped.map(a=>ATTR_LABELS[a]).join(' and ')} turned out redundant — the reduct alone reaches the same ${Math.round(reductInfo.gamma*100)}% dependency degree as using all four attributes.`
+    : `All four attributes are needed — none could be dropped without losing classification power.`;
+  chipRow.after(note);
+}
+
+function renderRules(rules) {
+  const list = document.getElementById('rules-list');
+  list.innerHTML = '';
+  if (rules.length === 0) {
+    list.innerHTML = '<p class="section-note">No certain rules yet — add more consistent students to the data.</p>';
+    return;
+  }
+  rules.forEach(rule => {
+    const el = document.createElement('div');
+    el.className = 'rule-card';
+    el.style.borderLeftColor = 'var(--certain)';
+    el.innerHTML = `
+      <span><span class="rule-cond">IF ${rule.conditions}</span><span class="rule-then">THEN</span><span class="rule-decision">${DECISION_LABELS[rule.decision]}</span></span>
+      <span class="rule-support">support: ${rule.support}</span>`;
+    list.appendChild(el);
+  });
+}
+
+let currentReduct = [];
+
+function renderClassifyFields() {
+  const container = document.getElementById('classify-fields');
+  container.innerHTML = '';
+  const attrsToShow = currentReduct.length ? currentReduct : CONDITION_ATTRS;
+  attrsToShow.forEach(a => {
+    const field = document.createElement('div');
+    field.className = 'field';
+    field.innerHTML = `<label>${ATTR_LABELS[a]}</label>
+      <select id="classify-${a}">${LEVELS.map(l => `<option value="${l}">${l}</option>`).join('')}</select>`;
+    container.appendChild(field);
+  });
+}
+
+function recompute() {
+  const approx = approximations(rows, CONDITION_ATTRS, 'decision');
+  renderRegions(approx);
+  const fullGamma = dependencyDegree(rows, CONDITION_ATTRS, 'decision');
+  renderGamma(fullGamma);
+  const reductInfo = quickReduct(rows, CONDITION_ATTRS, 'decision');
+  currentReduct = reductInfo.reduct;
+  renderReduct(reductInfo);
+  const rules = generateRules(rows, reductInfo.reduct, 'decision');
+  renderRules(rules);
+  renderClassifyFields();
+  document.getElementById('result-panel').classList.remove('show');
+}
+
+document.getElementById('add-row').addEventListener('click', () => {
+  rows.push({ attendance:'Med', assignments:'Med', internal:'Med', studyHours:'Med', decision:'Average' });
+  renderTable();
+  recompute();
+});
+document.getElementById('reset-data').addEventListener('click', () => {
+  rows = JSON.parse(JSON.stringify(SAMPLE_DATA));
+  renderTable();
+  recompute();
+});
+document.getElementById('classify-btn').addEventListener('click', () => {
+  const attrsToShow = currentReduct.length ? currentReduct : CONDITION_ATTRS;
+  const profile = {};
+  attrsToShow.forEach(a => { profile[a] = document.getElementById(`classify-${a}`).value; });
+  const res = classifyNew(rows, attrsToShow, 'decision', profile);
+  const panel = document.getElementById('result-panel');
+  const statusEl = document.getElementById('result-status');
+  const decisionEl = document.getElementById('result-decision');
+  const detailEl = document.getElementById('result-detail');
+  statusEl.className = 'result-status ' + res.status;
+  statusEl.textContent = res.status === 'certain' ? 'Certain' : res.status === 'uncertain' ? 'Uncertain — boundary case' : 'Unknown pattern';
+  decisionEl.textContent = res.status === 'certain' ? DECISION_LABELS[res.decision] :
+    res.status === 'uncertain' ? res.decision.map(d => DECISION_LABELS[d]).join(' or ') : 'No classification possible';
+  detailEl.textContent = res.detail;
+  panel.classList.add('show');
+});
+
+renderTable();
+recompute();
+</script>
+</body>
+</html>
